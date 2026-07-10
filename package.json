@@ -1,0 +1,21 @@
+{
+  "name": "keystone-xdtl",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Tests JavaScript para el motor de prestamos internos Keystone XDTL.",
+  "scripts": {
+    "test": "node --test \"tests/node/*.test.js\"",
+    "test:rust": "cargo test --locked",
+    "test:all": "cargo fmt --all -- --check && cargo build --all-targets --locked && cargo test --locked && cargo clippy --all-targets --all-features --locked -- -D warnings && node --test \"tests/node/*.test.js\"",
+    "build": "node scripts/check-js.mjs",
+    "fmt": "prettier --write --config .prettierrc --ignore-path .prettierignore \"tests/**/*.js\" \"scripts/**/*.mjs\" \"*.md\" \".github/**/*.yml\"",
+    "fmt:check": "prettier --check --config .prettierrc --ignore-path .prettierignore \"tests/**/*.js\" \"scripts/**/*.mjs\" \"*.md\" \".github/**/*.yml\""
+  },
+  "devDependencies": {
+    "prettier": "^3.8.3"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}
