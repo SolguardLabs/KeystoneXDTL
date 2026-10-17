@@ -1,8 +1,10 @@
 pub mod accounting;
+pub mod alm;
 pub mod amount;
 pub mod engine;
 pub mod error;
 pub mod events;
+pub mod governance;
 pub mod ids;
 pub mod liquidation;
 pub mod loan;
@@ -19,10 +21,17 @@ pub mod vault;
 pub use accounting::{
     AccountingBook, AccountingLine, AccountingSide, SystemAccounting, VaultAccounting,
 };
+pub use alm::{
+    LiquidityResources, LiquidityStressReport, LiquidityUses, StressScenario, VaultStressRow,
+};
 pub use amount::{Amount, Bps, Decimal, Shares};
 pub use engine::{EngineConfig, EngineSnapshot, KeystoneEngine};
 pub use error::{KeystoneError, KeystoneResult};
 pub use events::{Event, EventKind, Journal};
+pub use governance::{
+    ChangeKind, GovernanceGuardrails, ProposalAssessment, ProposalStatus, RiskChange, RiskProposal,
+    VoteTally,
+};
 pub use ids::{AccountId, AssetId, Digest, LoanId, PositionId, TxId, VaultId};
 pub use liquidation::{LiquidationPlan, LiquidationResult};
 pub use loan::{LoanState, LoanStatus, LoanTerms, LoanTermsInput, PaymentQuote, RepaymentMode};

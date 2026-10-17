@@ -1,19 +1,41 @@
-name: ci
+name: CI
 
 on:
   push:
+    branches: [main, production, "release/**"]
+    tags: ["v*"]
   pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    name: Rust and Node (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.96.0
           components: rustfmt, clippy
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: bash scripts/ci.sh
+          cache: npm
+      - run: npm ci
+      - run: npm run fmt:check
+      - run: cargo build --all-targets --locked
+      - run: cargo test --locked
+      - run: cargo clippy --all-targets --all-features --locked -- -D warnings
+      - run: node scripts/check-js.mjs
+      - run: node --test "tests/node/*.test.js"
+      - run: npm run check:public
