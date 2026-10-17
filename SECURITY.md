@@ -1,84 +1,109 @@
-# Security Policy
+# Política de seguridad
 
-## Modelo de seguridad
+## Versiones mantenidas
 
-Keystone XDTL asume un operador de protocolo que registra vaults, configura
-politicas y ejecuta transiciones de estado. Las cuentas de usuario solo se
-representan como identidades deterministas para deposits, redenciones y
-participacion en shares.
+| Versión | Estado      |
+| ------- | ----------- |
+| 1.0.x   | Mantenida   |
+| < 1.0   | Sin soporte |
 
-El motor esta disenado para que cada operacion economica se aplique sobre
-entidades tipadas y quede registrada en un journal de eventos con digest
-encadenado. Las pruebas publicas validan flujos de negocio esperados y
-propiedades de conservacion despues de las transiciones principales.
+## Modelo de confianza
 
-## Invariantes esperadas
+KeystoneXDTL procesa un libro económico determinista. El operador registra
+bóvedas, configura políticas y ejecuta transiciones; las identidades de cuenta
+solo autorizan posiciones y participaciones dentro del estado local.
 
-- La suma de shares por cuenta debe coincidir con el supply del vault.
-- El principal abierto en loans debe coincidir con el principal registrado en
-  vaults prestamistas.
-- La deuda principal de vaults prestatarios debe coincidir con loans no
-  terminales.
-- La deuda de interes de vaults prestatarios debe coincidir con el interes
-  pendiente de loans no terminales.
-- Un vault pausado o congelado no debe aceptar deposits ni redenciones.
-- Un loan no puede usar el mismo vault como prestamista y prestatario.
-- Un loan solo puede entrar en default despues de maturity mas periodo de
-  gracia.
-- Una liquidacion solo puede ejecutarse sobre loans en estado de default o
-  liquidacion.
+La frontera de confianza incluye:
 
-## Validaciones automatizadas
+- integridad de `EngineSnapshot` y del journal encadenado;
+- coherencia entre préstamos, bóvedas y libro contable;
+- frescura y unidad de los precios del oráculo;
+- límites de liquidez, concentración y colateral;
+- reproducibilidad del binario a partir del lockfile;
+- separación entre cálculo, propuesta y ejecución de gobernanza.
 
-La suite Rust cubre:
+```mermaid
+flowchart LR
+    I[Entrada validada] --> E[Transacción atómica]
+    E --> C[Contabilidad]
+    E --> J[Journal]
+    C --> V{Invariantes}
+    J --> V
+    V -->|válidas| S[Snapshot + digest]
+    V -->|incumplidas| R[Rollback y error tipado]
+```
 
-- Aritmetica de amounts, shares y bps.
-- Serializacion canonica de IDs y digests.
-- Journal de eventos.
-- Politicas de colateral e interes.
-- Apertura, repago, default y liquidacion.
-- Contabilidad auxiliar, riesgo y analitica de cartera.
+## Invariantes críticas
 
-La suite JavaScript cubre:
+- La suma de shares por cuenta coincide con el supply de la bóveda.
+- El principal abierto coincide entre préstamos y bóvedas prestamistas.
+- La deuda de principal e interés coincide con préstamos no terminales.
+- Un préstamo nunca usa la misma bóveda como prestamista y prestataria.
+- Un estado terminal no conserva principal operativo abierto.
+- Un default solo se admite después de vencimiento y gracia.
+- Una liquidación solo opera sobre estados admitidos.
+- Una bóveda pausada o congelada no acepta mutaciones restringidas.
+- El journal y el snapshot producen digests deterministas.
+- Las propuestas laxas no cruzan el gate si el stress severo incumple cobertura.
 
-- Contrato CLI y estructura JSON.
-- Apertura de prestamos con colateral.
-- Repagos programados y anticipados.
-- Defaults y liquidaciones.
-- Redistribucion de intereses realizados.
-- Escenarios de cartera con varios vaults.
+## Controles automatizados
 
-## Dependencias
+| Control                    | Cobertura                                           |
+| -------------------------- | --------------------------------------------------- |
+| `cargo fmt --check`        | Forma canónica del código                           |
+| `cargo build --locked`     | Resolución reproducible                             |
+| `cargo test --locked`      | Aritmética, estados, riesgo, ALM y gobernanza       |
+| `cargo clippy -D warnings` | Defectos estáticos y deuda técnica                  |
+| Tests Node                 | Contrato JSON y flujos de extremo a extremo         |
+| Public surface             | Ausencia de material interno en artefactos públicos |
+| Release integrity          | Convergencia de `main`, `production`, tag y versión |
 
-El proyecto usa un conjunto reducido de dependencias:
+## Áreas de revisión prioritaria
 
-- `serde` y `serde_json` para serializacion.
-- `thiserror` para errores tipados.
-- `blake3` y `hex` para digests deterministas.
+1. Redondeo y orden de actualización entre `loan`, `vault` y `engine`.
+2. Composición del NAV y precio de participaciones.
+3. Transiciones de repago, default, liquidación y write-off.
+4. Límites de concentración y suficiencia de cash.
+5. Aplicación de haircuts y cobros bajo stress.
+6. Quorum, aprobación, vencimiento y timelock de cambios de riesgo.
+7. Serialización canónica, digests y replay de eventos.
 
-Dependabot esta configurado para Cargo, npm y GitHub Actions.
+## Reporte responsable
 
-## Alcance de revision
+No abra un issue público con detalles sensibles. Utilice el canal privado de
+advisories disponible en la pestaña **Security** del repositorio. Incluya:
 
-El alcance principal esta en `src/`, especialmente:
+- versión o commit evaluado;
+- precondiciones y secuencia mínima reproducible;
+- estado esperado y estado observado;
+- impacto contable o económico cuantificado;
+- prueba reducida que no dependa de servicios externos;
+- propuesta de mitigación y regresión sugerida.
 
-- `engine.rs` para transiciones atomicas.
-- `vault.rs` para contabilidad y precio de shares.
-- `loan.rs` para schedule, quotes y estados.
-- `liquidation.rs` para recuperacion de defaults.
-- `policy.rs` para parametros economicos.
+Se recomienda cifrar cualquier material que contenga datos operativos. No
+incluya secretos, credenciales, claves privadas ni información personal.
 
-Tambien deben revisarse tests y escenarios para confirmar que el contrato JSON
-representa adecuadamente el estado economico del motor.
+## Respuesta
 
-## Reporte interno
+```mermaid
+stateDiagram-v2
+    [*] --> Recibido
+    Recibido --> Triage
+    Triage --> Reproducido
+    Triage --> Cerrado: no reproducible o fuera de alcance
+    Reproducido --> Mitigacion
+    Mitigacion --> Verificacion
+    Verificacion --> Publicacion
+    Publicacion --> [*]
+```
 
-Un reporte debe incluir:
+La confirmación inicial no implica aceptación del impacto. La publicación se
+realiza cuando existe corrección verificada y una versión mantenida disponible.
 
-- Descripcion del comportamiento observado.
-- Secuencia minima de operaciones.
-- Estado esperado y estado resultante.
-- Impacto economico.
-- Archivos y lineas relevantes.
-- Recomendacion de mitigacion.
-- Tests adicionales propuestos.
+## Fuera de alcance
+
+- Ingeniería social, phishing o suplantación.
+- Ataques de disponibilidad sin una hipótesis económica reproducible.
+- Hallazgos que requieren modificar el binario o el estado fuera de las APIs.
+- Problemas exclusivos de herramientas o runtimes sin impacto en KeystoneXDTL.
+- Divulgación de dependencias sin demostrar que la ruta afectada es alcanzable.
